@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { Pane } from 'tweakpane'
+import { CSS3DRenderer, CSS3DObject } from 'three/examples/jsm/renderers/CSS3DRenderer.js'
 
 /**
  * Base
@@ -11,10 +12,12 @@ const pane = new Pane()
 
 // Canvas
 const canvas = document.querySelector('canvas.webgl') as HTMLCanvasElement
+const container = document.querySelector('.container') as HTMLDivElement
 
 // Scene
 const scene = new THREE.Scene()
 scene.background = new THREE.Color('#dcffe5')
+const cssScene = new THREE.Scene()
 
 /**
  * Models
@@ -90,6 +93,8 @@ window.addEventListener('resize', () =>
     // Update renderer
     renderer.setSize(sizes.width, sizes.height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+
+    cssRenderer.setSize(sizes.width, sizes.height)
 })
 
 /**
@@ -116,17 +121,42 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
-/**
- * Animate
- */
+// CSS3D renderer (top layer so the iframe is clickable)
+const cssRenderer = new CSS3DRenderer()
+cssRenderer.setSize(window.innerWidth, window.innerHeight)
+cssRenderer.domElement.style.position = 'absolute'
+cssRenderer.domElement.style.top = '0'
+container.appendChild(cssRenderer.domElement)
+cssRenderer.domElement.style.pointerEvents = 'none'
 
-const tick = () =>
-{
+// A 3D “screen” as DOM (YouTube iframe)
+const w = 640, h = 360; // iframe pixel size before scaling into world units
+const div = document.createElement('div')
+div.style.width = `${w}px`
+div.style.height = `${h}px`
+div.style.background = '#000'
+
+const iframe = document.createElement('iframe')
+iframe.width = '100%'
+iframe.height = '100%'
+iframe.style.border = '0'
+// Start at 29s
+iframe.src = 'https://www.youtube.com/embed/GCE41Gp5Uto?enablejsapi=1&rel=0&modestbranding=1&controls=1&start=29&playsinline=1'
+div.appendChild(iframe)
+
+const cssObj = new CSS3DObject(div)
+// Scale the CSS pixel plane into your world units (tune this factor)
+cssObj.scale.set(0.005, 0.005, 0.005)
+cssObj.position.set(-3, 1, 0)
+cssScene.add(cssObj)
+
+const tick = () => {
     // Update controls
     controls.update()
 
     // Render
     renderer.render(scene, camera)
+    cssRenderer.render(cssScene, camera)
 
     // Call tick again on the next frame
     window.requestAnimationFrame(tick)
